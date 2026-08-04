@@ -1,0 +1,20 @@
+{
+    "geode": "5.8.2",
+    "gd": {
+        "android": "2.2081"
+    },
+    "id": "com.yourname.cyrillictest",
+    "name": "Cyrillic Font Test",
+    "version": "v1.0.0",
+    "developer": "YourName",
+    "description": "Test mod to check whether a custom TTF font with Cyrillic glyphs renders correctly in-game.",
+    "resources": {
+        "fonts": {
+            "PusiaCyrillic": {
+                "path": "resources/Pusia-Bold.ttf",
+                "size": 80,
+                "charset": "32-126,1024-1279"
+            }
+        }
+    }
+}
