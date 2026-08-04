@@ -9,14 +9,9 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-project(CyrillicTest VERSION 1.0.0)
+project(CyrillicTest VERSION 1.0.2)
 
-file(GLOB SOURCES
-    src/*.cpp
-    src/*.hpp
-)
-
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
+add_library(${PROJECT_NAME} SHARED src/main.cpp)
 
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
 
