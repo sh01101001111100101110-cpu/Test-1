@@ -14,6 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Decode font
+        run: base64 -d resources/Pusia-Bold.ttf.b64 > resources/Pusia-Bold.ttf
+
       - name: Build the mod
         id: build
         uses: geode-sdk/build-geode-mod@main
