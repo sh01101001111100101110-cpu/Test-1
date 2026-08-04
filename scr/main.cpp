@@ -3,6 +3,21 @@
 
 using namespace geode::prelude;
 
+// This is the EXACT example from geode-sdk.org's homepage, unmodified,
+// to rule out any signature mismatch on our end. If pressing "More Games"
+// shows this popup, hooking works fine and the problem was specific to
+// our MenuLayer::init() signature. If it doesn't, hooking itself is
+// broken somehow for this GD version/setup.
+class $modify(MoreGamesTest, MenuLayer) {
+    void onMoreGames(CCObject*) {
+        FLAlertLayer::create(
+            "Geode",
+            "Hello World from my Custom Mod!",
+            "OK"
+        )->show();
+    }
+};
+
 class $modify(CyrillicTestMenuLayer, MenuLayer) {
     bool init() {
         if (!MenuLayer::init()) return false;
