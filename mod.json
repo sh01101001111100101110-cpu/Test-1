@@ -5,7 +5,7 @@
     },
     "id": "com.yourname.cyrillictest",
     "name": "Cyrillic Font Test",
-    "version": "v1.0.0",
+    "version": "v1.0.1",
     "developer": "YourName",
     "description": "Test mod to check whether a custom TTF font with Cyrillic glyphs renders correctly in-game.",
     "resources": {
