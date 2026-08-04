@@ -7,20 +7,41 @@ class $modify(CyrillicTestMenuLayer, MenuLayer) {
     bool init() {
         if (!MenuLayer::init()) return false;
 
+        auto winSize = CCDirector::sharedDirector()->getWinSize();
+
+        // STEP 1: prove the hook itself is firing at all, using GD's own
+        // built-in font that we know 100% exists. If this doesn't show up,
+        // the problem is with the hook/mod loading, not the custom font.
+        auto proofLabel = CCLabelBMFont::create("MOD IS RUNNING", "bigFont.fnt");
+        proofLabel->setScale(0.6f);
+        proofLabel->setPosition(winSize.width / 2, winSize.height - 20);
+        proofLabel->setColor({0, 255, 0});
+        this->addChild(proofLabel, 100);
+
+        // STEP 2: now test the custom Cyrillic font separately.
         // "PusiaCyrillic.fnt"_spr uses the font we defined in mod.json.
         auto label = CCLabelBMFont::create(
             "Привет мир! Проверка кириллицы (йцукен)",
             "PusiaCyrillic.fnt"_spr
         );
 
-        // Make it reasonably sized and place it near the top of the screen,
-        // clear of the usual buttons, so it's easy to spot.
-        label->setScale(0.5f);
-        label->setPosition(
-            CCDirector::sharedDirector()->getWinSize().width / 2,
-            CCDirector::sharedDirector()->getWinSize().height - 40
-        );
-        this->addChild(label, 100);
+        if (label) {
+            log::info("CyrillicTest: custom font label created successfully");
+            label->setScale(0.5f);
+            label->setPosition(winSize.width / 2, winSize.height - 40);
+            label->setColor({255, 0, 0});
+            this->addChild(label, 100);
+        } else {
+            // If our custom font failed to load, this uses GD's default
+            // font instead, so we get SOME visible proof of what happened
+            // rather than silent nothing.
+            log::error("CyrillicTest: CCLabelBMFont::create returned nullptr - font not found");
+            auto fallback = CCLabelBMFont::create("FONT FAILED", "bigFont.fnt");
+            fallback->setScale(0.5f);
+            fallback->setPosition(winSize.width / 2, winSize.height - 40);
+            fallback->setColor({255, 0, 0});
+            this->addChild(fallback, 100);
+        }
 
         return true;
     }
