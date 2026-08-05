@@ -1,63 +1,115 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/MenuLayer.hpp>
+#include <Geode/ui/GeodeUI.hpp>
+#include <Geode/utils/web.hpp>
 
 using namespace geode::prelude;
 
-// This is the EXACT example from geode-sdk.org's homepage, unmodified,
-// to rule out any signature mismatch on our end. If pressing "More Games"
-// shows this popup, hooking works fine and the problem was specific to
-// our MenuLayer::init() signature. If it doesn't, hooking itself is
-// broken somehow for this GD version/setup.
-class $modify(MoreGamesTest, MenuLayer) {
-    void onMoreGames(CCObject*) {
-        FLAlertLayer::create(
-            "Geode",
-            "Hello World from my Custom Mod!",
-            "OK"
-        )->show();
-    }
-};
+// Which mods we've already processed, so re-opening the same popup
+// doesn't re-trigger a translation request every time.
+static std::unordered_set<std::string> g_processedModIDs;
 
-class $modify(CyrillicTestMenuLayer, MenuLayer) {
-    bool init() {
-        if (!MenuLayer::init()) return false;
+// The scale we draw our custom-font label at. The font was baked at a large
+// base size (80pt) for crisp text, so we shrink it down to fit the popup.
+constexpr float LABEL_SCALE = 0.4f;
 
-        auto winSize = CCDirector::sharedDirector()->getWinSize();
+std::string buildTranslateUrl(std::string const& text) {
+    auto encoded = web::urlEncode(text);
+    return fmt::format(
+        "https://api.mymemory.translated.net/get?q={}&langpair=en|ru",
+        encoded
+    );
+}
 
-        // STEP 1: prove the hook itself is firing at all, using GD's own
-        // built-in font that we know 100% exists. If this doesn't show up,
-        // the problem is with the hook/mod loading, not the custom font.
-        auto proofLabel = CCLabelBMFont::create("MOD IS RUNNING", "bigFont.fnt");
-        proofLabel->setScale(0.6f);
-        proofLabel->setPosition(winSize.width / 2, winSize.height - 20);
-        proofLabel->setColor({0, 255, 0});
-        this->addChild(proofLabel, 100);
+void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text) {
+    if (!parent) return;
 
-        // STEP 2: now test the custom Cyrillic font separately.
-        // "PusiaCyrillic.fnt"_spr uses the font we defined in mod.json.
-        auto label = CCLabelBMFont::create(
-            "Привет мир! Проверка кириллицы (йцукен)",
-            "PusiaCyrillic.fnt"_spr
-        );
+    // wrapWidth is in the font's own (unscaled) coordinate space, so we
+    // divide the on-screen width by our scale to get the right wrap point.
+    float wrapWidth = size.width / LABEL_SCALE;
 
-        if (label) {
-            log::info("CyrillicTest: custom font label created successfully");
-            label->setScale(0.5f);
-            label->setPosition(winSize.width / 2, winSize.height - 40);
-            label->setColor({255, 0, 0});
-            this->addChild(label, 100);
-        } else {
-            // If our custom font failed to load, this uses GD's default
-            // font instead, so we get SOME visible proof of what happened
-            // rather than silent nothing.
-            log::error("CyrillicTest: CCLabelBMFont::create returned nullptr - font not found");
-            auto fallback = CCLabelBMFont::create("FONT FAILED", "bigFont.fnt");
-            fallback->setScale(0.5f);
-            fallback->setPosition(winSize.width / 2, winSize.height - 40);
-            fallback->setColor({255, 0, 0});
-            this->addChild(fallback, 100);
+    auto label = CCLabelBMFont::create(
+        text.c_str(),
+        "PusiaCyrillic.fnt"_spr,
+        wrapWidth,
+        kCCTextAlignmentLeft
+    );
+
+    label->setAnchorPoint({0.f, 1.f});
+    label->setScale(LABEL_SCALE);
+    label->setPosition(pos);
+    label->setColor({255, 255, 255});
+    parent->addChild(label, 100);
+}
+
+$on_mod(Loaded) {
+    new EventListener<EventFilter<ModPopupUIEvent>>(+[](ModPopupUIEvent* event) {
+        if (!Mod::get()->getSettingValue<bool>("enabled")) {
+            return ListenerResult::Propagate;
         }
 
-        return true;
-    }
-};
+        auto modID = event->getModID();
+        if (g_processedModIDs.contains(modID)) {
+            return ListenerResult::Propagate;
+        }
+
+        auto popup = event->getPopup();
+        if (!popup) return ListenerResult::Propagate;
+
+        auto textarea = popup->querySelector("description-container > textarea");
+        if (!textarea) return ListenerResult::Propagate;
+
+        auto mod = Loader::get()->getInstalledMod(modID);
+        if (!mod) return ListenerResult::Propagate;
+
+        auto detailsRes = mod->getMetadata().getDetails();
+        if (!detailsRes) return ListenerResult::Propagate;
+
+        auto original = detailsRes.unwrap();
+        if (original.empty()) return ListenerResult::Propagate;
+
+        g_processedModIDs.insert(modID);
+
+        // We can't fix MDTextArea's built-in font, so hide it and draw our
+        // own text with our custom Cyrillic-capable font instead.
+        auto pos = textarea->getPosition();
+        auto size = textarea->getContentSize();
+        auto parent = textarea->getParent();
+        textarea->setVisible(false);
+
+        // MyMemory's single-request limit is ~500 bytes. If the description
+        // is longer than that, just show the original English for now
+        // rather than nothing - splitting into chunks is a later step.
+        if (original.size() > 480) {
+            log::warn("RU Mod Descriptions: description too long to translate ({} bytes), showing original", original.size());
+            showLabel(parent, pos, size, original);
+            return ListenerResult::Propagate;
+        }
+
+        auto url = buildTranslateUrl(original);
+        web::WebRequest().get(url).listen(
+            [parent, pos, size, original](web::WebResponse* response) {
+                std::string textToShow = original;
+
+                if (response->ok()) {
+                    auto json = response->json();
+                    if (json) {
+                        auto translated = json.unwrap()["responseData"]["translatedText"].asString();
+                        if (translated) {
+                            textToShow = translated.unwrap();
+                        } else {
+                            log::warn("RU Mod Descriptions: response JSON missing translatedText");
+                        }
+                    } else {
+                        log::warn("RU Mod Descriptions: failed to parse response JSON");
+                    }
+                } else {
+                    log::warn("RU Mod Descriptions: translation request failed");
+                }
+
+                showLabel(parent, pos, size, textToShow);
+            }
+        );
+
+        return ListenerResult::Propagate;
+    });
+}
