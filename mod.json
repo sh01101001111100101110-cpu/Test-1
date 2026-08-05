@@ -4,10 +4,10 @@
         "android": "2.2081"
     },
     "id": "com.yourname.cyrillictest",
-    "name": "Cyrillic Font Test",
-    "version": "v1.0.2",
+    "name": "RU Mod Descriptions",
+    "version": "v1.0.3",
     "developer": "YourName",
-    "description": "Test mod to check whether a custom TTF font with Cyrillic glyphs renders correctly in-game.",
+    "description": "Translates mod description popups into Russian using a custom Cyrillic font.",
     "resources": {
         "fonts": {
             "PusiaCyrillic": {
