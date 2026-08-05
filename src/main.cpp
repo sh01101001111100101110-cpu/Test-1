@@ -1,6 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/ui/GeodeUI.hpp>
 #include <Geode/utils/web.hpp>
+#include <Geode/loader/Event.hpp>
 
 using namespace geode::prelude;
 
@@ -11,14 +12,6 @@ static std::unordered_set<std::string> g_processedModIDs;
 // The scale we draw our custom-font label at. The font was baked at a large
 // base size (80pt) for crisp text, so we shrink it down to fit the popup.
 constexpr float LABEL_SCALE = 0.4f;
-
-std::string buildTranslateUrl(std::string const& text) {
-    auto encoded = web::urlEncode(text);
-    return fmt::format(
-        "https://api.mymemory.translated.net/get?q={}&langpair=en|ru",
-        encoded
-    );
-}
 
 void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text) {
     if (!parent) return;
@@ -76,39 +69,37 @@ $on_mod(Loaded) {
         auto parent = textarea->getParent();
         textarea->setVisible(false);
 
+        std::string textToShow = original;
+
         // MyMemory's single-request limit is ~500 bytes. If the description
         // is longer than that, just show the original English for now
         // rather than nothing - splitting into chunks is a later step.
-        if (original.size() > 480) {
-            log::warn("RU Mod Descriptions: description too long to translate ({} bytes), showing original", original.size());
-            showLabel(parent, pos, size, original);
-            return ListenerResult::Propagate;
-        }
+        if (original.size() <= 480) {
+            auto req = web::WebRequest();
+            req.param("q", original);
+            req.param("langpair", "en|ru");
+            auto response = req.getSync("https://api.mymemory.translated.net/get", Mod::get());
 
-        auto url = buildTranslateUrl(original);
-        web::WebRequest().get(url).listen(
-            [parent, pos, size, original](web::WebResponse* response) {
-                std::string textToShow = original;
-
-                if (response->ok()) {
-                    auto json = response->json();
-                    if (json) {
-                        auto translated = json.unwrap()["responseData"]["translatedText"].asString();
-                        if (translated) {
-                            textToShow = translated.unwrap();
-                        } else {
-                            log::warn("RU Mod Descriptions: response JSON missing translatedText");
-                        }
+            if (response.ok()) {
+                auto json = response.json();
+                if (json) {
+                    auto translated = json.unwrap()["responseData"]["translatedText"].asString();
+                    if (translated) {
+                        textToShow = translated.unwrap();
                     } else {
-                        log::warn("RU Mod Descriptions: failed to parse response JSON");
+                        log::warn("RU Mod Descriptions: response JSON missing translatedText");
                     }
                 } else {
-                    log::warn("RU Mod Descriptions: translation request failed");
+                    log::warn("RU Mod Descriptions: failed to parse response JSON");
                 }
-
-                showLabel(parent, pos, size, textToShow);
+            } else {
+                log::warn("RU Mod Descriptions: translation request failed");
             }
-        );
+        } else {
+            log::warn("RU Mod Descriptions: description too long to translate ({} bytes), showing original", original.size());
+        }
+
+        showLabel(parent, pos, size, textToShow);
 
         return ListenerResult::Propagate;
     });
