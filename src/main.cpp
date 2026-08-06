@@ -1,7 +1,6 @@
 #include <Geode/Geode.hpp>
 #include <Geode/ui/GeodeUI.hpp>
 #include <Geode/utils/web.hpp>
-#include <Geode/loader/Event.hpp>
 
 using namespace geode::prelude;
 
@@ -35,72 +34,73 @@ void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text
 }
 
 $on_mod(Loaded) {
-    ModPopupUIEvent::listen([](ModPopupUIEvent* event) {
-        if (!Mod::get()->getSettingValue<bool>("enabled")) {
-            return ListenerResult::Propagate;
-        }
+    ModPopupUIEvent().listen(
+        [](FLAlertLayer* popup, std::string_view modIDView, std::optional<Mod*> modOpt) -> bool {
+            if (!Mod::get()->getSettingValue<bool>("enabled")) {
+                return false;
+            }
 
-        auto modID = event->getModID();
-        if (g_processedModIDs.contains(modID)) {
-            return ListenerResult::Propagate;
-        }
+            std::string modID(modIDView);
+            if (g_processedModIDs.contains(modID)) {
+                return false;
+            }
 
-        auto popup = event->getPopup();
-        if (!popup) return ListenerResult::Propagate;
+            if (!popup || !modOpt.has_value()) {
+                return false;
+            }
+            auto mod = modOpt.value();
 
-        auto textarea = popup->querySelector("description-container > textarea");
-        if (!textarea) return ListenerResult::Propagate;
+            auto textarea = popup->querySelector("description-container > textarea");
+            if (!textarea) return false;
 
-        auto mod = Loader::get()->getInstalledMod(modID);
-        if (!mod) return ListenerResult::Propagate;
+            auto detailsRes = mod->getMetadata().getDetails();
+            if (!detailsRes) return false;
 
-        auto detailsRes = mod->getMetadata().getDetails();
-        if (!detailsRes) return ListenerResult::Propagate;
+            auto original = detailsRes.unwrap();
+            if (original.empty()) return false;
 
-        auto original = detailsRes.unwrap();
-        if (original.empty()) return ListenerResult::Propagate;
+            g_processedModIDs.insert(modID);
 
-        g_processedModIDs.insert(modID);
+            // We can't fix MDTextArea's built-in font, so hide it and draw
+            // our own text with our custom Cyrillic-capable font instead.
+            auto pos = textarea->getPosition();
+            auto size = textarea->getContentSize();
+            auto parent = textarea->getParent();
+            textarea->setVisible(false);
 
-        // We can't fix MDTextArea's built-in font, so hide it and draw our
-        // own text with our custom Cyrillic-capable font instead.
-        auto pos = textarea->getPosition();
-        auto size = textarea->getContentSize();
-        auto parent = textarea->getParent();
-        textarea->setVisible(false);
+            std::string textToShow = original;
 
-        std::string textToShow = original;
+            // MyMemory's single-request limit is ~500 bytes. If the
+            // description is longer than that, just show the original
+            // English for now rather than nothing.
+            if (original.size() <= 480) {
+                auto req = web::WebRequest();
+                req.param("q", original);
+                req.param("langpair", "en|ru");
+                auto response = req.getSync("https://api.mymemory.translated.net/get", Mod::get());
 
-        // MyMemory's single-request limit is ~500 bytes. If the description
-        // is longer than that, just show the original English for now
-        // rather than nothing - splitting into chunks is a later step.
-        if (original.size() <= 480) {
-            auto req = web::WebRequest();
-            req.param("q", original);
-            req.param("langpair", "en|ru");
-            auto response = req.getSync("https://api.mymemory.translated.net/get", Mod::get());
-
-            if (response.ok()) {
-                auto json = response.json();
-                if (json) {
-                    auto translated = json.unwrap()["responseData"]["translatedText"].asString();
-                    if (translated) {
-                        textToShow = translated.unwrap();
+                if (response.ok()) {
+                    auto json = response.json();
+                    if (json) {
+                        auto translated = json.unwrap()["responseData"]["translatedText"].asString();
+                        if (translated) {
+                            textToShow = translated.unwrap();
+                        } else {
+                            log::warn("RU Mod Descriptions: response JSON missing translatedText");
+                        }
                     } else {
-                        log::warn("RU Mod Descriptions: response JSON missing translatedText");
+                        log::warn("RU Mod Descriptions: failed to parse response JSON");
                     }
                 } else {
-                    log::warn("RU Mod Descriptions: failed to parse response JSON");
+                    log::warn("RU Mod Descriptions: translation request failed");
                 }
             } else {
-                log::warn("RU Mod Descriptions: translation request failed");
+                log::warn("RU Mod Descriptions: description too long to translate ({} bytes), showing original", original.size());
             }
-        } else {
-            log::warn("RU Mod Descriptions: description too long to translate ({} bytes), showing original", original.size());
+
+            showLabel(parent, pos, size, textToShow);
+
+            return false;
         }
-
-        showLabel(parent, pos, size, textToShow);
-
-        return ListenerResult::Propagate;
-    });
+    ).leak();
 }
