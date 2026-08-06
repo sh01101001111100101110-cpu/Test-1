@@ -35,7 +35,7 @@ void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text
 }
 
 $on_mod(Loaded) {
-    new EventListener<EventFilter<ModPopupUIEvent>>(+[](ModPopupUIEvent* event) {
+    ModPopupUIEvent::listen([](ModPopupUIEvent* event) {
         if (!Mod::get()->getSettingValue<bool>("enabled")) {
             return ListenerResult::Propagate;
         }
