@@ -14,16 +14,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Decode font
-        run: base64 -d resources/Pusia-Bold.ttf.b64 > resources/Pusia-Bold.ttf
-
       - name: Build the mod
         id: build
+        continue-on-error: true
         uses: geode-sdk/build-geode-mod@main
         with:
           target: Android64
 
+      - name: Dump Geode UI event headers for debugging
+        if: always()
+        run: |
+          echo "===== GeodeUI.hpp ====="
+          find . -path "*/ui/GeodeUI.hpp" -exec cat {} \;
+          echo "===== Event.hpp (class declarations) ====="
+          find . -path "*/loader/Event.hpp" -exec cat {} \;
+
+      - name: Fail job if build failed
+        if: steps.build.outcome == 'failure'
+        run: exit 1
+
       - name: Upload build artifact
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: CyrillicTest
