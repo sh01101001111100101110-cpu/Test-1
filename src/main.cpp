@@ -34,30 +34,52 @@ void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text
 }
 
 $on_mod(Loaded) {
+    log::info("RU Mod Descriptions: registering listener");
+
     ModPopupUIEvent().listen(
         [](FLAlertLayer* popup, std::string_view modIDView, std::optional<Mod*> modOpt) -> bool {
+            log::info("RU Mod Descriptions: event fired for modID={}", std::string(modIDView));
+
             if (!Mod::get()->getSettingValue<bool>("enabled")) {
+                log::info("RU Mod Descriptions: disabled via setting, bailing");
                 return false;
             }
 
             std::string modID(modIDView);
             if (g_processedModIDs.contains(modID)) {
+                log::info("RU Mod Descriptions: already processed {}, bailing", modID);
                 return false;
             }
 
-            if (!popup || !modOpt.has_value()) {
+            if (!popup) {
+                log::warn("RU Mod Descriptions: popup is null, bailing");
+                return false;
+            }
+            if (!modOpt.has_value()) {
+                log::warn("RU Mod Descriptions: modOpt has no value, bailing");
                 return false;
             }
             auto mod = modOpt.value();
 
             auto textarea = popup->querySelector("description-container > textarea");
-            if (!textarea) return false;
+            if (!textarea) {
+                log::warn("RU Mod Descriptions: querySelector found no textarea, bailing");
+                return false;
+            }
+            log::info("RU Mod Descriptions: found textarea node");
 
             auto detailsOpt = mod->getMetadata().getDetails();
-            if (!detailsOpt.has_value()) return false;
+            if (!detailsOpt.has_value()) {
+                log::warn("RU Mod Descriptions: getDetails() has no value, bailing");
+                return false;
+            }
 
             auto original = detailsOpt.value();
-            if (original.empty()) return false;
+            if (original.empty()) {
+                log::warn("RU Mod Descriptions: details string is empty, bailing");
+                return false;
+            }
+            log::info("RU Mod Descriptions: got details, {} bytes", original.size());
 
             g_processedModIDs.insert(modID);
 
@@ -67,6 +89,7 @@ $on_mod(Loaded) {
             auto size = textarea->getContentSize();
             auto parent = textarea->getParent();
             textarea->setVisible(false);
+            log::info("RU Mod Descriptions: hid original textarea, pos=({},{}) size=({},{})", pos.x, pos.y, size.width, size.height);
 
             std::string textToShow = original;
 
@@ -77,14 +100,17 @@ $on_mod(Loaded) {
                 auto req = web::WebRequest();
                 req.param("q", original);
                 req.param("langpair", "en|ru");
+                log::info("RU Mod Descriptions: sending translation request");
                 auto response = req.getSync("https://api.mymemory.translated.net/get", Mod::get());
 
                 if (response.ok()) {
+                    log::info("RU Mod Descriptions: response ok");
                     auto json = response.json();
                     if (json) {
                         auto translated = json.unwrap()["responseData"]["translatedText"].asString();
                         if (translated) {
                             textToShow = translated.unwrap();
+                            log::info("RU Mod Descriptions: translated text = {}", textToShow);
                         } else {
                             log::warn("RU Mod Descriptions: response JSON missing translatedText");
                         }
@@ -99,6 +125,7 @@ $on_mod(Loaded) {
             }
 
             showLabel(parent, pos, size, textToShow);
+            log::info("RU Mod Descriptions: showLabel called");
 
             return false;
         }
