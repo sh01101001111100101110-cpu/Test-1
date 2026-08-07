@@ -86,11 +86,15 @@ $on_mod(Loaded) {
 
             // We can't fix MDTextArea's built-in font, so hide it and draw
             // our own text with our custom Cyrillic-capable font instead.
-            auto pos = textarea->getPosition();
-            auto size = textarea->getContentSize();
+            // boundingBox() gives us the real edges regardless of the
+            // original node's anchor point, which getPosition() alone
+            // doesn't account for.
+            auto box = textarea->boundingBox();
+            CCPoint topLeft = { box.origin.x, box.origin.y + box.size.height };
+            CCSize size = box.size;
             auto parent = textarea->getParent();
             textarea->setVisible(false);
-            log::info("RU Mod Descriptions: hid original textarea, pos=({},{}) size=({},{})", pos.x, pos.y, size.width, size.height);
+            log::info("RU Mod Descriptions: hid original textarea, topLeft=({},{}) size=({},{})", topLeft.x, topLeft.y, size.width, size.height);
 
             std::string textToShow = original;
 
@@ -125,7 +129,7 @@ $on_mod(Loaded) {
                 log::warn("RU Mod Descriptions: description too long to translate ({} bytes), showing original", original.size());
             }
 
-            showLabel(parent, pos, size, textToShow);
+            showLabel(parent, topLeft, size, textToShow);
             log::info("RU Mod Descriptions: showLabel called");
 
             return false;
