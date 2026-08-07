@@ -4,9 +4,11 @@
 
 using namespace geode::prelude;
 
-// Which mods we've already processed, so re-opening the same popup
-// doesn't re-trigger a translation request every time.
-static std::unordered_set<std::string> g_processedModIDs;
+// Cache of already-translated text per mod ID, so we don't hit the
+// translation API again every time the same popup is reopened - but we
+// still redo the hide+label step every time, since a fresh popup means a
+// fresh (visible-again) textarea node.
+static std::unordered_map<std::string, std::string> g_translationCache;
 
 // The scale we draw our custom-font label at. The font was baked at a large
 // base size (80pt) for crisp text, so we shrink it down to fit the popup.
@@ -46,10 +48,6 @@ $on_mod(Loaded) {
             }
 
             std::string modID(modIDView);
-            if (g_processedModIDs.contains(modID)) {
-                log::info("RU Mod Descriptions: already processed {}, bailing", modID);
-                return false;
-            }
 
             if (!popup) {
                 log::warn("RU Mod Descriptions: popup is null, bailing");
@@ -82,8 +80,6 @@ $on_mod(Loaded) {
             }
             log::info("RU Mod Descriptions: got details, {} bytes", original.size());
 
-            g_processedModIDs.insert(modID);
-
             // We can't fix MDTextArea's built-in font, so hide it and draw
             // our own text with our custom Cyrillic-capable font instead.
             // boundingBox() gives us the real edges regardless of the
@@ -98,10 +94,14 @@ $on_mod(Loaded) {
 
             std::string textToShow = original;
 
+            if (auto cached = g_translationCache.find(modID); cached != g_translationCache.end()) {
+                log::info("RU Mod Descriptions: using cached translation");
+                textToShow = cached->second;
+            }
             // MyMemory's single-request limit is ~500 bytes. If the
             // description is longer than that, just show the original
             // English for now rather than nothing.
-            if (original.size() <= 480) {
+            else if (original.size() <= 480) {
                 auto req = web::WebRequest();
                 req.param("q", original);
                 req.param("langpair", "en|ru");
@@ -115,6 +115,7 @@ $on_mod(Loaded) {
                         auto translated = json.unwrap()["responseData"]["translatedText"].asString();
                         if (translated) {
                             textToShow = translated.unwrap();
+                            g_translationCache[modID] = textToShow;
                             log::info("RU Mod Descriptions: translated text = {}", textToShow);
                         } else {
                             log::warn("RU Mod Descriptions: response JSON missing translatedText");
