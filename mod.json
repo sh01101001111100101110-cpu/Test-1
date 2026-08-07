@@ -5,7 +5,7 @@
     },
     "id": "com.yourname.cyrillictest",
     "name": "RU Mod Descriptions",
-    "version": "v1.0.3",
+    "version": "v1.0.4",
     "developer": "YourName",
     "description": "Translates mod description popups into Russian using a custom Cyrillic font.",
     "resources": {
@@ -15,6 +15,14 @@
                 "size": 80,
                 "charset": "32-126,1024-1279"
             }
+        }
+    },
+    "settings": {
+        "enabled": {
+            "name": "Enabled",
+            "description": "Turn translation on or off.",
+            "type": "bool",
+            "default": true
         }
     }
 }
