@@ -1,6 +1,8 @@
 #include <Geode/Geode.hpp>
 #include <Geode/ui/GeodeUI.hpp>
+#include <Geode/ui/ScrollLayer.hpp>
 #include <Geode/utils/web.hpp>
+#include <algorithm>
 
 using namespace geode::prelude;
 
@@ -108,12 +110,25 @@ void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text
         wrapWidth,
         kCCTextAlignmentLeft
     );
-
     label->setAnchorPoint({0.f, 1.f});
     label->setScale(LABEL_SCALE);
-    label->setPosition(pos);
     label->setColor({255, 255, 255});
-    parent->addChild(label, 100);
+
+    // How tall the translated text actually is once scaled down, so the
+    // scroll area knows how far it should be able to scroll.
+    float textHeight = label->getContentSize().height * LABEL_SCALE;
+    float contentHeight = std::max(textHeight, size.height);
+
+    auto scrollLayer = ScrollLayer::create(size);
+    // pos is the top-left corner of the box; ScrollLayer positions itself
+    // from its bottom-left corner, so we shift down by the box height.
+    scrollLayer->setPosition({ pos.x, pos.y - size.height });
+    scrollLayer->m_contentLayer->setContentSize({ size.width, contentHeight });
+    label->setPosition({ 0.f, contentHeight });
+    scrollLayer->m_contentLayer->addChild(label);
+    scrollLayer->scrollToTop();
+
+    parent->addChild(scrollLayer, 100);
 }
 
 $on_mod(Loaded) {
