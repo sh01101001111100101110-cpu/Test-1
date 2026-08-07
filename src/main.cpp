@@ -55,11 +55,12 @@ $on_mod(Loaded) {
                 log::warn("RU Mod Descriptions: popup is null, bailing");
                 return false;
             }
-            if (!modOpt.has_value()) {
-                log::warn("RU Mod Descriptions: modOpt has no value, bailing");
+
+            auto mod = Loader::get()->getInstalledMod(modID);
+            if (!mod) {
+                log::warn("RU Mod Descriptions: no installed mod found for {}, bailing", modID);
                 return false;
             }
-            auto mod = modOpt.value();
 
             auto textarea = popup->querySelector("description-container > textarea");
             if (!textarea) {
