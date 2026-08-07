@@ -53,10 +53,10 @@ $on_mod(Loaded) {
             auto textarea = popup->querySelector("description-container > textarea");
             if (!textarea) return false;
 
-            auto detailsRes = mod->getMetadata().getDetails();
-            if (!detailsRes) return false;
+            auto detailsOpt = mod->getMetadata().getDetails();
+            if (!detailsOpt.has_value()) return false;
 
-            auto original = detailsRes.unwrap();
+            auto original = detailsOpt.value();
             if (original.empty()) return false;
 
             g_processedModIDs.insert(modID);
