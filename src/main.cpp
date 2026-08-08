@@ -3,6 +3,7 @@
 #include <Geode/ui/ScrollLayer.hpp>
 #include <Geode/utils/web.hpp>
 #include <algorithm>
+#include <sstream>
 
 using namespace geode::prelude;
 
@@ -97,19 +98,60 @@ std::string translateLong(std::string const& text) {
     return result;
 }
 
+// Manually wraps text to fit within maxWidthUnscaled (in the font's own
+// unscaled coordinate space), by measuring an unwrapped test label to
+// estimate average character width, then greedily wrapping word by word.
+// We do this ourselves rather than relying on CCLabelBMFont's built-in
+// width/alignment overload, since that didn't actually wrap correctly here.
+std::string wrapText(std::string const& text, float maxWidthUnscaled) {
+    if (text.empty()) return text;
+
+    auto testLabel = CCLabelBMFont::create(text.c_str(), "PusiaCyrillic.fnt"_spr);
+    float totalWidth = testLabel->getContentSize().width;
+    if (totalWidth <= 0.f) return text;
+
+    float avgCharWidth = totalWidth / static_cast<float>(text.size());
+    int maxCharsPerLine = std::max(1, static_cast<int>(maxWidthUnscaled / avgCharWidth));
+
+    std::string result;
+    std::istringstream sourceStream(text);
+    std::string sourceLine;
+    bool firstLine = true;
+
+    while (std::getline(sourceStream, sourceLine)) {
+        if (!firstLine) result += "\n";
+        firstLine = false;
+
+        std::istringstream wordStream(sourceLine);
+        std::string word;
+        std::string currentLine;
+        bool firstWord = true;
+
+        while (wordStream >> word) {
+            std::string candidate = firstWord ? word : (currentLine + " " + word);
+            if (!firstWord && static_cast<int>(candidate.size()) > maxCharsPerLine && !currentLine.empty()) {
+                result += currentLine + "\n";
+                currentLine = word;
+            } else {
+                currentLine = candidate;
+            }
+            firstWord = false;
+        }
+        result += currentLine;
+    }
+
+    return result;
+}
+
 void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text) {
     if (!parent) return;
 
-    // wrapWidth is in the font's own (unscaled) coordinate space, so we
-    // divide the on-screen width by our scale to get the right wrap point.
-    float wrapWidth = size.width / LABEL_SCALE;
+    // maxWidthUnscaled is in the font's own (unscaled) coordinate space, so
+    // we divide the on-screen width by our scale to get the right value.
+    float maxWidthUnscaled = size.width / LABEL_SCALE;
+    auto wrapped = wrapText(text, maxWidthUnscaled);
 
-    auto label = CCLabelBMFont::create(
-        text.c_str(),
-        "PusiaCyrillic.fnt"_spr,
-        wrapWidth,
-        kCCTextAlignmentLeft
-    );
+    auto label = CCLabelBMFont::create(wrapped.c_str(), "PusiaCyrillic.fnt"_spr);
     label->setAnchorPoint({0.f, 1.f});
     label->setScale(LABEL_SCALE);
     label->setColor({255, 255, 255});
