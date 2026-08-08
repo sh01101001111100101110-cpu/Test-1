@@ -117,16 +117,6 @@ size_t utf8Length(std::string const& s) {
 std::string wrapText(std::string const& text, float maxWidthUnscaled) {
     if (text.empty()) return text;
 
-    auto testLabel = CCLabelBMFont::create(text.c_str(), "PusiaCyrillic.fnt"_spr);
-    float totalWidth = testLabel->getContentSize().width;
-    if (totalWidth <= 0.f) return text;
-
-    float avgCharWidth = totalWidth / static_cast<float>(utf8Length(text));
-    int maxCharsPerLine = std::max(1, static_cast<int>(maxWidthUnscaled / avgCharWidth));
-
-    log::info("RU Mod Descriptions: wrap calc - totalWidth={} chars={} avgCharWidth={} maxWidthUnscaled={} maxCharsPerLine={}",
-        totalWidth, utf8Length(text), avgCharWidth, maxWidthUnscaled, maxCharsPerLine);
-
     std::string result;
     std::istringstream sourceStream(text);
     std::string sourceLine;
@@ -135,6 +125,20 @@ std::string wrapText(std::string const& text, float maxWidthUnscaled) {
     while (std::getline(sourceStream, sourceLine)) {
         if (!firstLine) result += "\n";
         firstLine = false;
+
+        if (sourceLine.empty()) continue;
+
+        // Measure THIS line's own natural width. Since we already split on
+        // '\n' above, this line is guaranteed to render as a single line,
+        // giving an accurate average character width - unlike measuring
+        // the whole multi-paragraph text at once, which was the bug.
+        auto testLabel = CCLabelBMFont::create(sourceLine.c_str(), "PusiaCyrillic.fnt"_spr);
+        float lineWidth = testLabel->getContentSize().width;
+        size_t lineChars = utf8Length(sourceLine);
+        float avgCharWidth = (lineChars > 0 && lineWidth > 0.f)
+            ? (lineWidth / static_cast<float>(lineChars))
+            : 10.f;
+        int maxCharsPerLine = std::max(1, static_cast<int>(maxWidthUnscaled / avgCharWidth));
 
         std::istringstream wordStream(sourceLine);
         std::string word;
