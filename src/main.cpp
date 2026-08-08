@@ -98,6 +98,17 @@ std::string translateLong(std::string const& text) {
     return result;
 }
 
+// std::string::size() counts bytes, not characters - and Cyrillic letters
+// are 2 bytes each in UTF-8. This counts actual codepoints instead, by only
+// counting bytes that aren't UTF-8 continuation bytes (10xxxxxx).
+size_t utf8Length(std::string const& s) {
+    size_t count = 0;
+    for (unsigned char c : s) {
+        if ((c & 0xC0) != 0x80) count++;
+    }
+    return count;
+}
+
 // Manually wraps text to fit within maxWidthUnscaled (in the font's own
 // unscaled coordinate space), by measuring an unwrapped test label to
 // estimate average character width, then greedily wrapping word by word.
@@ -110,8 +121,11 @@ std::string wrapText(std::string const& text, float maxWidthUnscaled) {
     float totalWidth = testLabel->getContentSize().width;
     if (totalWidth <= 0.f) return text;
 
-    float avgCharWidth = totalWidth / static_cast<float>(text.size());
+    float avgCharWidth = totalWidth / static_cast<float>(utf8Length(text));
     int maxCharsPerLine = std::max(1, static_cast<int>(maxWidthUnscaled / avgCharWidth));
+
+    log::info("RU Mod Descriptions: wrap calc - totalWidth={} chars={} avgCharWidth={} maxWidthUnscaled={} maxCharsPerLine={}",
+        totalWidth, utf8Length(text), avgCharWidth, maxWidthUnscaled, maxCharsPerLine);
 
     std::string result;
     std::istringstream sourceStream(text);
@@ -129,7 +143,7 @@ std::string wrapText(std::string const& text, float maxWidthUnscaled) {
 
         while (wordStream >> word) {
             std::string candidate = firstWord ? word : (currentLine + " " + word);
-            if (!firstWord && static_cast<int>(candidate.size()) > maxCharsPerLine && !currentLine.empty()) {
+            if (!firstWord && static_cast<int>(utf8Length(candidate)) > maxCharsPerLine && !currentLine.empty()) {
                 result += currentLine + "\n";
                 currentLine = word;
             } else {
@@ -150,6 +164,7 @@ void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text
     // we divide the on-screen width by our scale to get the right value.
     float maxWidthUnscaled = size.width / LABEL_SCALE;
     auto wrapped = wrapText(text, maxWidthUnscaled);
+    log::info("RU Mod Descriptions: wrapped result: [{}]", wrapped);
 
     auto label = CCLabelBMFont::create(wrapped.c_str(), "PusiaCyrillic.fnt"_spr);
     label->setAnchorPoint({0.f, 1.f});
