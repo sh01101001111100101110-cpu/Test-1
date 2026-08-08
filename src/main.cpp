@@ -18,13 +18,12 @@ static std::unordered_map<std::string, std::string> g_translationCache;
 constexpr float LABEL_SCALE = 0.4f;
 
 // MyMemory's single-request limit is ~500 bytes; we keep a safety margin.
-constexpr size_t MAX_CHUNK_BYTES = 450;
+// Google's unofficial endpoint tolerates much bigger requests, so fewer,
+// larger requests are used when it's the chosen translator - arguably also
+// less conspicuous than many small rapid-fire requests.
+constexpr size_t MAX_CHUNK_BYTES_MYMEMORY = 450;
+constexpr size_t MAX_CHUNK_BYTES_GOOGLE = 1800;
 
-// Tries the unofficial (but widely used, keyless) Google Translate endpoint
-// first, since it doesn't appear to have MyMemory's hard daily character
-// limit. Falls back to MyMemory if Google's request fails for any reason.
-// Both ultimately fall back to returning the original chunk untranslated
-// rather than losing the text.
 std::string translateViaGoogle(std::string const& chunk) {
     auto req = web::WebRequest();
     req.param("client", "gtx");
@@ -70,30 +69,31 @@ std::string translateViaMyMemory(std::string const& chunk) {
     return translated.unwrap();
 }
 
-// Translates a single chunk that's already known to be under the API's
-// per-request limit. Falls back to returning the original chunk untranslated
-// if both translation services fail, rather than losing the text entirely.
-std::string translateChunk(std::string const& chunk) {
-    auto viaGoogle = translateViaGoogle(chunk);
-    if (!viaGoogle.empty()) {
-        return viaGoogle;
+// Translates a single chunk using whichever translator the user picked in
+// settings. Falls back to returning the chunk untranslated if the request
+// fails, rather than losing the text entirely.
+std::string translateChunk(std::string const& chunk, std::string const& translator) {
+    std::string result;
+    if (translator == "google") {
+        result = translateViaGoogle(chunk);
+    } else if (translator == "mymemory") {
+        result = translateViaMyMemory(chunk);
     }
 
-    log::warn("RU Mod Descriptions: Google translate failed, trying MyMemory");
-    auto viaMyMemory = translateViaMyMemory(chunk);
-    if (!viaMyMemory.empty()) {
-        return viaMyMemory;
+    if (result.empty()) {
+        log::warn("RU Mod Descriptions: translation failed for a chunk via {}", translator);
+        return chunk;
     }
-
-    log::warn("RU Mod Descriptions: both translation services failed for this chunk");
-    return chunk;
+    return result;
 }
 
-// Splits text into line-respecting chunks under MAX_CHUNK_BYTES, translates
-// each chunk with a separate request, and stitches the results back together
-// with newlines. This lets us translate descriptions of any length, at the
-// cost of one request per chunk.
-std::string translateLong(std::string const& text) {
+// Splits text into line-respecting chunks under the chosen translator's
+// byte limit, translates each chunk with a separate request, and stitches
+// the results back together with newlines. This lets us translate
+// descriptions of any length, at the cost of one request per chunk.
+std::string translateLong(std::string const& text, std::string const& translator) {
+    size_t maxChunkBytes = (translator == "google") ? MAX_CHUNK_BYTES_GOOGLE : MAX_CHUNK_BYTES_MYMEMORY;
+
     std::vector<std::string> lines;
     size_t start = 0;
     for (size_t i = 0; i <= text.size(); ++i) {
@@ -109,24 +109,21 @@ std::string translateLong(std::string const& text) {
     auto flush = [&]() {
         if (buffer.empty()) return;
         if (!result.empty()) result += "\n";
-        result += translateChunk(buffer);
+        result += translateChunk(buffer, translator);
         buffer.clear();
     };
 
     for (auto const& line : lines) {
-        if (!buffer.empty() && buffer.size() + 1 + line.size() > MAX_CHUNK_BYTES) {
+        if (!buffer.empty() && buffer.size() + 1 + line.size() > maxChunkBytes) {
             flush();
         }
 
-        if (line.size() > MAX_CHUNK_BYTES) {
+        if (line.size() > maxChunkBytes) {
             // A single line longer than the whole limit - flush what we
-            // have, then translate this line by itself as a best effort
-            // (still under the limit since MAX_CHUNK_BYTES has a margin
-            // below the real 500 byte cap, so this only truncates in
-            // extreme edge cases).
+            // have, then translate this line by itself as a best effort.
             flush();
             if (!result.empty()) result += "\n";
-            result += translateChunk(line.substr(0, MAX_CHUNK_BYTES));
+            result += translateChunk(line.substr(0, maxChunkBytes), translator);
             continue;
         }
 
@@ -268,15 +265,20 @@ $on_mod(Loaded) {
             auto parent = textarea->getParent();
             textarea->setVisible(false);
 
+            std::string translator = Mod::get()->getSettingValue<std::string>("translator");
+            std::string cacheKey = translator + "|" + modID;
+
             std::string textToShow;
 
-            if (auto cached = g_translationCache.find(modID); cached != g_translationCache.end()) {
+            if (translator == "none") {
+                textToShow = original;
+            } else if (auto cached = g_translationCache.find(cacheKey); cached != g_translationCache.end()) {
                 log::info("RU Mod Descriptions: using cached translation");
                 textToShow = cached->second;
             } else {
-                log::info("RU Mod Descriptions: translating {} bytes", original.size());
-                textToShow = translateLong(original);
-                g_translationCache[modID] = textToShow;
+                log::info("RU Mod Descriptions: translating {} bytes via {}", original.size(), translator);
+                textToShow = translateLong(original, translator);
+                g_translationCache[cacheKey] = textToShow;
             }
 
             showLabel(parent, topLeft, size, textToShow);
