@@ -20,33 +20,73 @@ constexpr float LABEL_SCALE = 0.4f;
 // MyMemory's single-request limit is ~500 bytes; we keep a safety margin.
 constexpr size_t MAX_CHUNK_BYTES = 450;
 
-// Translates a single chunk that's already known to be under the API's
-// per-request limit. Falls back to returning the original chunk untranslated
-// if anything goes wrong, rather than losing the text entirely.
-std::string translateChunk(std::string const& chunk) {
+// Tries the unofficial (but widely used, keyless) Google Translate endpoint
+// first, since it doesn't appear to have MyMemory's hard daily character
+// limit. Falls back to MyMemory if Google's request fails for any reason.
+// Both ultimately fall back to returning the original chunk untranslated
+// rather than losing the text.
+std::string translateViaGoogle(std::string const& chunk) {
+    auto req = web::WebRequest();
+    req.param("client", "gtx");
+    req.param("sl", "en");
+    req.param("tl", "ru");
+    req.param("dt", "t");
+    req.param("q", chunk);
+    auto response = req.getSync("https://translate.googleapis.com/translate_a/single", Mod::get());
+
+    if (!response.ok()) return "";
+
+    auto json = response.json();
+    if (!json) return "";
+
+    // Google's response shape: [[["translated part","source part",...], ...], null, "en"]
+    // The text can be split across multiple segments that need concatenating.
+    auto root = json.unwrap();
+    auto segmentsRes = root[0].asArray();
+    if (!segmentsRes) return "";
+
+    std::string result;
+    for (auto const& segment : segmentsRes.unwrap()) {
+        auto partRes = segment[0].asString();
+        if (partRes) result += partRes.unwrap();
+    }
+    return result;
+}
+
+std::string translateViaMyMemory(std::string const& chunk) {
     auto req = web::WebRequest();
     req.param("q", chunk);
     req.param("langpair", "en|ru");
     auto response = req.getSync("https://api.mymemory.translated.net/get", Mod::get());
 
-    if (!response.ok()) {
-        log::warn("RU Mod Descriptions: chunk translation request failed");
-        return chunk;
-    }
+    if (!response.ok()) return "";
 
     auto json = response.json();
-    if (!json) {
-        log::warn("RU Mod Descriptions: chunk response JSON parse failed");
-        return chunk;
-    }
+    if (!json) return "";
 
     auto translated = json.unwrap()["responseData"]["translatedText"].asString();
-    if (!translated) {
-        log::warn("RU Mod Descriptions: chunk response missing translatedText");
-        return chunk;
-    }
+    if (!translated) return "";
 
     return translated.unwrap();
+}
+
+// Translates a single chunk that's already known to be under the API's
+// per-request limit. Falls back to returning the original chunk untranslated
+// if both translation services fail, rather than losing the text entirely.
+std::string translateChunk(std::string const& chunk) {
+    auto viaGoogle = translateViaGoogle(chunk);
+    if (!viaGoogle.empty()) {
+        return viaGoogle;
+    }
+
+    log::warn("RU Mod Descriptions: Google translate failed, trying MyMemory");
+    auto viaMyMemory = translateViaMyMemory(chunk);
+    if (!viaMyMemory.empty()) {
+        return viaMyMemory;
+    }
+
+    log::warn("RU Mod Descriptions: both translation services failed for this chunk");
+    return chunk;
 }
 
 // Splits text into line-respecting chunks under MAX_CHUNK_BYTES, translates
