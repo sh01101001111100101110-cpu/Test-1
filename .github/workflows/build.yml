@@ -24,13 +24,15 @@ jobs:
         with:
           target: Android64
 
-      - name: Dump MDTextArea header for debugging
+      - name: Search for default font usage in MDTextArea implementation
         if: always()
         run: |
-          echo "===== MDTextArea.hpp ====="
-          find . -iname "MDTextArea.hpp" -exec cat {} \;
-          echo "===== TextRenderer.hpp ====="
-          find . -iname "TextRenderer.hpp" -exec cat {} \;
+          echo "===== grep pushBMFont across whole source tree ====="
+          grep -rn "pushBMFont" --include="*.cpp" --include="*.hpp" . || echo "no matches"
+          echo "===== MDTextArea.cpp if present ====="
+          find . -iname "MDTextArea.cpp" -exec cat {} \;
+          echo "===== MDParser.cpp if present ====="
+          find . -iname "MDParser*.cpp" -exec cat {} \;
 
       - name: Fail job if build failed
         if: steps.build.outcome == 'failure'
