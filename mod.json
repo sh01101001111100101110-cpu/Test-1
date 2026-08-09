@@ -5,20 +5,13 @@
     },
     "id": "com.yourname.cyrillictest",
     "name": "RU Mod Descriptions",
-    "version": "v1.4.1",
+    "version": "v1.5.0",
     "developer": "YourName",
-    "description": "Translates mod description popups into Russian using a custom Cyrillic font.",
+    "description": "Translates mod description popups into Russian, using a texture pack to make Geode's own markdown renderer support Cyrillic.",
     "dependencies": {
         "geode.texture-loader": ">=1.0.0"
     },
     "resources": {
-        "fonts": {
-            "PusiaCyrillic": {
-                "path": "resources/Pusia-Bold.ttf",
-                "size": 80,
-                "charset": "32-126,1024-1279"
-            }
-        },
         "files": [
             "resources/texturepack/pack.json",
             "resources/texturepack/**/*.fnt",
@@ -34,7 +27,7 @@
         },
         "translator": {
             "name": "Translator",
-            "description": "Which service translates descriptions. \"None\" just shows the original English text in the custom Cyrillic-capable font, without translating - useful to confirm the font itself works.",
+            "description": "Which service translates descriptions. \"None\" just shows the original English text - useful to confirm the font pack itself works.",
             "type": "string",
             "default": "google",
             "one-of": ["google", "mymemory", "none"]
