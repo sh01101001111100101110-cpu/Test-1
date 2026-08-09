@@ -29,8 +29,8 @@ jobs:
         run: |
           echo "===== MDTextArea.hpp ====="
           find . -iname "MDTextArea.hpp" -exec cat {} \;
-          echo "===== MDPopup or MDNode related files ====="
-          find . -iname "*MD*.hpp" -not -iname "MDTextArea.hpp"
+          echo "===== TextRenderer.hpp ====="
+          find . -iname "TextRenderer.hpp" -exec cat {} \;
 
       - name: Fail job if build failed
         if: steps.build.outcome == 'failure'
