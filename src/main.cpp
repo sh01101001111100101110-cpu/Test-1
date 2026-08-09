@@ -4,8 +4,51 @@
 #include <Geode/utils/web.hpp>
 #include <algorithm>
 #include <sstream>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 using namespace geode::prelude;
+
+// Copies our bundled Cyrillic font pack into Texture Loader's packs folder
+// on first run, so descriptions actually render in Cyrillic without the
+// user having to install the pack separately. Safe to call every launch -
+// it checks for a marker file first and does nothing if already installed.
+void installFontPackIfNeeded() {
+    auto textureLoader = Loader::get()->getInstalledMod("geode.texture-loader");
+    if (!textureLoader) {
+        log::warn("RU Mod Descriptions: Texture Loader not installed, skipping font pack install");
+        return;
+    }
+
+    auto packDir = textureLoader->getConfigDir() / "packs" / "CyrillicMarkdownFontPack";
+    auto markerFile = packDir / "geode.loader" / "mdFont.fnt";
+
+    if (fs::exists(markerFile)) {
+        log::info("RU Mod Descriptions: Cyrillic font pack already installed");
+        return;
+    }
+
+    auto sourceDir = Mod::get()->getResourcesDir() / "texturepack";
+    if (!fs::exists(sourceDir)) {
+        log::warn("RU Mod Descriptions: bundled font pack source missing at {}", sourceDir.string());
+        return;
+    }
+
+    std::error_code ec;
+    fs::create_directories(packDir, ec);
+    fs::copy(
+        sourceDir, packDir,
+        fs::copy_options::recursive | fs::copy_options::overwrite_existing,
+        ec
+    );
+
+    if (ec) {
+        log::error("RU Mod Descriptions: failed to install font pack: {}", ec.message());
+    } else {
+        log::info("RU Mod Descriptions: Cyrillic font pack installed to {}", packDir.string());
+    }
+}
 
 // Cache of already-translated text per mod ID, so we don't hit the
 // translation API again every time the same popup is reopened - but we
@@ -330,6 +373,7 @@ void showLabel(CCNode* parent, CCPoint pos, CCSize size, std::string const& text
 
 $on_mod(Loaded) {
     log::info("RU Mod Descriptions: registering listener");
+    installFontPackIfNeeded();
 
     ModPopupUIEvent().listen(
         [](FLAlertLayer* popup, std::string_view modIDView, std::optional<Mod*> modOpt) -> bool {
