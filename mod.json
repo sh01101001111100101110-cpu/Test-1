@@ -5,9 +5,12 @@
     },
     "id": "com.yourname.cyrillictest",
     "name": "RU Mod Descriptions",
-    "version": "v1.3.0",
+    "version": "v1.4.0",
     "developer": "YourName",
     "description": "Translates mod description popups into Russian using a custom Cyrillic font.",
+    "dependencies": {
+        "geode.texture-loader": ">=1.0.0"
+    },
     "resources": {
         "fonts": {
             "PusiaCyrillic": {
@@ -15,7 +18,10 @@
                 "size": 80,
                 "charset": "32-126,1024-1279"
             }
-        }
+        },
+        "files": [
+            "resources/texturepack/**/*"
+        ]
     },
     "settings": {
         "enabled": {
