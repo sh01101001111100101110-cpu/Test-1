@@ -5,7 +5,7 @@
     },
     "id": "com.yourname.cyrillictest",
     "name": "RU Mod Descriptions",
-    "version": "v1.4.0",
+    "version": "v1.4.1",
     "developer": "YourName",
     "description": "Translates mod description popups into Russian using a custom Cyrillic font.",
     "dependencies": {
@@ -20,7 +20,9 @@
             }
         },
         "files": [
-            "resources/texturepack/**/*"
+            "resources/texturepack/pack.json",
+            "resources/texturepack/**/*.fnt",
+            "resources/texturepack/**/*.png"
         ]
     },
     "settings": {
