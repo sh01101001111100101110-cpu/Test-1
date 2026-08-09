@@ -17,32 +17,20 @@ jobs:
       - name: Decode font
         run: base64 -d resources/Pusia-Bold.ttf.b64 > resources/Pusia-Bold.ttf
 
+      - name: Decode and extract texture pack
+        run: |
+          base64 -d resources/texturepack.tar.gz.b64 > resources/texturepack.tar.gz
+          mkdir -p resources/texturepack
+          tar -xzf resources/texturepack.tar.gz -C resources/texturepack
+          find resources/texturepack -maxdepth 2
+
       - name: Build the mod
         id: build
-        continue-on-error: true
         uses: geode-sdk/build-geode-mod@main
         with:
           target: Android64
 
-      - name: Search for mdFont source and license info
-        if: always()
-        run: |
-          echo "===== find any file with mdFont in the name ====="
-          find . -iname "*mdFont*" 2>/dev/null
-          echo "===== find ttf/otf files anywhere in loader resources ====="
-          find . -ipath "*loader*resources*" \( -iname "*.ttf" -o -iname "*.otf" \) 2>/dev/null
-          echo "===== search mod.json / CMakeLists for font resource declarations ====="
-          grep -rn "mdFont" --include="*.json" --include="*.cmake" --include="CMakeLists.txt" . 2>/dev/null
-          echo "===== search for LICENSE or credits mentioning font names ====="
-          find . -iname "*license*" -ipath "*resources*" 2>/dev/null
-          grep -rln "font" --include="*.md" --include="*LICENSE*" --include="*license*" . 2>/dev/null | head -20
-
-      - name: Fail job if build failed
-        if: steps.build.outcome == 'failure'
-        run: exit 1
-
       - name: Upload build artifact
-        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: CyrillicTest
