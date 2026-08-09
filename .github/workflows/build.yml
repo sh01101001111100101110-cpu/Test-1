@@ -24,15 +24,18 @@ jobs:
         with:
           target: Android64
 
-      - name: Search for default font usage in MDTextArea implementation
+      - name: Search for mdFont source and license info
         if: always()
         run: |
-          echo "===== grep pushBMFont across whole source tree ====="
-          grep -rn "pushBMFont" --include="*.cpp" --include="*.hpp" . || echo "no matches"
-          echo "===== MDTextArea.cpp if present ====="
-          find . -iname "MDTextArea.cpp" -exec cat {} \;
-          echo "===== MDParser.cpp if present ====="
-          find . -iname "MDParser*.cpp" -exec cat {} \;
+          echo "===== find any file with mdFont in the name ====="
+          find . -iname "*mdFont*" 2>/dev/null
+          echo "===== find ttf/otf files anywhere in loader resources ====="
+          find . -ipath "*loader*resources*" \( -iname "*.ttf" -o -iname "*.otf" \) 2>/dev/null
+          echo "===== search mod.json / CMakeLists for font resource declarations ====="
+          grep -rn "mdFont" --include="*.json" --include="*.cmake" --include="CMakeLists.txt" . 2>/dev/null
+          echo "===== search for LICENSE or credits mentioning font names ====="
+          find . -iname "*license*" -ipath "*resources*" 2>/dev/null
+          grep -rln "font" --include="*.md" --include="*LICENSE*" --include="*license*" . 2>/dev/null | head -20
 
       - name: Fail job if build failed
         if: steps.build.outcome == 'failure'
