@@ -5,7 +5,7 @@
     },
     "id": "com.yourname.cyrillictest",
     "name": "RU Mod Descriptions",
-    "version": "v1.2.0",
+    "version": "v1.2.1",
     "developer": "YourName",
     "description": "Translates mod description popups into Russian using a custom Cyrillic font.",
     "resources": {
@@ -29,7 +29,7 @@
             "description": "Which service translates descriptions. \"None\" just shows the original English text in the custom Cyrillic-capable font, without translating - useful to confirm the font itself works.",
             "type": "string",
             "default": "google",
-            "options": ["google", "mymemory", "none"]
+            "one-of": ["google", "mymemory", "none"]
         }
     }
 }
