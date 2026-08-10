@@ -38,7 +38,7 @@ jobs:
       - name: Decode and extract texture pack
         shell: bash
         run: |
-          base64 -d resources/texturepack.tar.gz.b64 > resources/texturepack.tar.gz
+          base64 -d < resources/texturepack.tar.gz.b64 > resources/texturepack.tar.gz
           mkdir -p resources/texturepack
           tar -xzf resources/texturepack.tar.gz -C resources/texturepack
 
