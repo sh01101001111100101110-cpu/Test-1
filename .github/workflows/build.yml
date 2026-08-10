@@ -8,27 +8,48 @@ on:
 
 jobs:
   build:
-    name: Android64
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: Windows
+            os: windows-latest
+
+          - name: macOS
+            os: macos-latest
+
+          - name: iOS
+            os: macos-latest
+            target: iOS
+
+          - name: Android32
+            os: ubuntu-latest
+            target: Android32
+
+          - name: Android64
+            os: ubuntu-latest
+            target: Android64
+
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Decode and extract texture pack
+        shell: bash
         run: |
           base64 -d resources/texturepack.tar.gz.b64 > resources/texturepack.tar.gz
           mkdir -p resources/texturepack
           tar -xzf resources/texturepack.tar.gz -C resources/texturepack
-          find resources/texturepack -maxdepth 2
 
       - name: Build the mod
         id: build
         uses: geode-sdk/build-geode-mod@main
         with:
-          target: Android64
+          target: ${{ matrix.config.target }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CyrillicTest
+          name: CyrillicTest-${{ matrix.config.name }}
           path: ${{ steps.build.outputs.build-output }}
