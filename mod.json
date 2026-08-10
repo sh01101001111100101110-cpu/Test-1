@@ -1,13 +1,22 @@
 {
     "geode": "5.8.2",
     "gd": {
-        "android": "2.2081"
+        "win": "2.2081",
+        "android": "2.2081",
+        "mac": "2.2081",
+        "ios": "2.2081"
     },
     "id": "com.yourname.cyrillictest",
-    "name": "RU Mod Descriptions",
-    "version": "v1.5.0",
-    "developer": "YourName",
+    "name": "RU-Descriptions",
+    "version": "1.0.0",
+    "developer": "semionhot",
     "description": "Translates mod description popups into Russian, using a texture pack to make Geode's own markdown renderer support Cyrillic.",
+    "tags": [
+        "online",
+        "enhancement",
+        "utility",
+        "interface"
+    ],
     "dependencies": {
         "geode.texture-loader": ">=1.0.0"
     },
