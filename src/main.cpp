@@ -7,10 +7,24 @@
 namespace fs = std::filesystem;
 using namespace geode::prelude;
 
-// Angle-bracket tags like <mod:hjfod.betteredit> get mangled by translation
-// (e.g. "mod" gets translated into a real word, breaking the tag). We swap
-// them out for plain placeholder tokens before translating, then restore
-// the original tags afterward once the placeholders survive intact.
+// Encodes an index as a single Private Use Area Unicode codepoint
+// (U+E000 + index), UTF-8-encoded as a 3-byte sequence. PUA characters
+// have no meaning in any language, so translation engines are far less
+// likely to alter or merge them than a fake "word" placeholder would be.
+std::string encodePlaceholder(int index) {
+    int codepoint = 0xE000 + index;
+    std::string result;
+    result += static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F));
+    result += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+    result += static_cast<char>(0x80 | (codepoint & 0x3F));
+    return result;
+}
+
+// Angle-bracket tags (color tags like <c-dddddd>, </c>, and links like
+// <mod:hjfod.betteredit>) get mangled by translation - words inside get
+// translated, or the placeholder text itself gets merged/altered. We swap
+// them out for single PUA placeholder characters before translating, then
+// restore the original tags afterward.
 std::string protectTags(std::string const& text, std::vector<std::string>& tags) {
     std::string result;
     size_t i = 0;
@@ -19,7 +33,7 @@ std::string protectTags(std::string const& text, std::vector<std::string>& tags)
             size_t end = text.find('>', i);
             if (end != std::string::npos) {
                 tags.push_back(text.substr(i, end - i + 1));
-                result += "zzztag" + std::to_string(tags.size() - 1) + "zzz";
+                result += encodePlaceholder(static_cast<int>(tags.size()) - 1);
                 i = end + 1;
                 continue;
             }
@@ -33,10 +47,12 @@ std::string protectTags(std::string const& text, std::vector<std::string>& tags)
 std::string restoreTags(std::string const& text, std::vector<std::string> const& tags) {
     std::string result = text;
     for (size_t idx = 0; idx < tags.size(); idx++) {
-        std::string placeholder = "zzztag" + std::to_string(idx) + "zzz";
+        std::string placeholder = encodePlaceholder(static_cast<int>(idx));
         size_t pos = result.find(placeholder);
         if (pos != std::string::npos) {
             result.replace(pos, placeholder.size(), tags[idx]);
+        } else {
+            log::warn("RU Mod Descriptions: placeholder for tag {} ('{}') was lost in translation", idx, tags[idx]);
         }
     }
     return result;
