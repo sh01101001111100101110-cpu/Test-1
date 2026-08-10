@@ -7,6 +7,41 @@
 namespace fs = std::filesystem;
 using namespace geode::prelude;
 
+// Angle-bracket tags like <mod:hjfod.betteredit> get mangled by translation
+// (e.g. "mod" gets translated into a real word, breaking the tag). We swap
+// them out for plain placeholder tokens before translating, then restore
+// the original tags afterward once the placeholders survive intact.
+std::string protectTags(std::string const& text, std::vector<std::string>& tags) {
+    std::string result;
+    size_t i = 0;
+    while (i < text.size()) {
+        if (text[i] == '<') {
+            size_t end = text.find('>', i);
+            if (end != std::string::npos) {
+                tags.push_back(text.substr(i, end - i + 1));
+                result += "zzztag" + std::to_string(tags.size() - 1) + "zzz";
+                i = end + 1;
+                continue;
+            }
+        }
+        result += text[i];
+        i++;
+    }
+    return result;
+}
+
+std::string restoreTags(std::string const& text, std::vector<std::string> const& tags) {
+    std::string result = text;
+    for (size_t idx = 0; idx < tags.size(); idx++) {
+        std::string placeholder = "zzztag" + std::to_string(idx) + "zzz";
+        size_t pos = result.find(placeholder);
+        if (pos != std::string::npos) {
+            result.replace(pos, placeholder.size(), tags[idx]);
+        }
+    }
+    return result;
+}
+
 // Cache of already-translated text per mod ID + translator choice, so we
 // don't hit the translation API again every time the same popup reopens.
 static std::unordered_map<std::string, std::string> g_translationCache;
@@ -198,7 +233,10 @@ $on_mod(Loaded) {
                 textToShow = cached->second;
             } else {
                 log::info("RU Mod Descriptions: translating {} bytes via {}", original.size(), translator);
-                textToShow = translateLong(original, translator);
+                std::vector<std::string> tags;
+                auto protectedText = protectTags(original, tags);
+                auto translatedProtected = translateLong(protectedText, translator);
+                textToShow = restoreTags(translatedProtected, tags);
                 g_translationCache[cacheKey] = textToShow;
             }
 
