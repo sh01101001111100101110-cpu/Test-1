@@ -1,4 +1,4 @@
-# RU-Descriptions
+# <c-BEDEFF>R</c><c-C2E1FC>U</c><c-C7E4F9>-</c><c-CBE7F6>D</c><c-D0EAF3>e</c><c-D4EDF0>s</c><c-D9F0ED>c</c><c-DDF3EA>r</c><c-E2F6E7>i</c><c-E6F9E4>p</c><c-EBFCE1>t</c><c-EFEEDF>i</c><c-F4F1DC>o</c><c-F8F4D9>n</c><c-FFFFFF>s</c>
 
 <c-92e8a3>Translates mod descriptions into Russian</c> - right inside Geode's regular popup, without losing formatting: headings, **bold text**, links, colors and dividers all stay intact.
 
