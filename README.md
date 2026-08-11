@@ -8,16 +8,20 @@
 
 This mod swaps out Geode's built-in font (via **Texture Loader**) for a version that supports Cyrillic, then translates the description text itself using Google Translate or MyMemory, showing the result in the same window you're used to.
 
+---
+
 ## Requirements
 
 - <cy>Texture Loader</c> - will be suggested for install automatically if you don't have it.
 - An internet connection (translation happens through external services).
 
+---
+
 ## Settings
 
-- **Enabled** - turn translation on or off.
-- **Translator** - which service to use: `google` (default), `mymemory` (fallback), `none` (shows the original English text, font pack still applies).
+- **<c-BDFFBD>E</c><c-C9F5BE>n</c><c-D6EBBF>a</c><c-E3E1C0>b</c><c-F0D7C1>l</c><c-FDCDC2>e</c><c-FFBDBD>d</c>** - turn translation on or off. <c-888888>(if the translation is not needed or there is a formatting error)</c>
+- **<c-FFBDDE>T</c><c-FFC2DB>r</c><c-FFC7D8>a</c><c-FFCCD5>n</c><c-FFD1D2>s</c><c-FFD6CF>l</c><c-FFDBCC>a</c><c-FFE0C9>t</c><c-FFE5C6>o</c><c-FFDEBD>r</c>** - which service to use: `google` (default), `mymemory` (fallback), `none` (shows the original English text, font pack still applies).
 
 ---
 
-<c-555555>если ты читаешь это — привет! значит, ты и правда установил мод, а не просто листаешь список. хорошего дня :)</c>
+<c-555555>Хорошего тебе дня :3</c>
