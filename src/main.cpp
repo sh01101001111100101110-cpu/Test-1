@@ -21,10 +21,10 @@ std::string encodePlaceholder(int index) {
 }
 
 // Angle-bracket tags (color tags like <c-dddddd>, </c>, and links like
-// <mod:hjfod.betteredit>) get mangled by translation - words inside get
-// translated, or the placeholder text itself gets merged/altered. We swap
+// <mod:hjfod.betteredit>) AND markdown-style links like
+// [undefined0](user:13351341) both get mangled by translation. We swap
 // them out for single PUA placeholder characters before translating, then
-// restore the original tags afterward.
+// restore the originals afterward.
 std::string protectTags(std::string const& text, std::vector<std::string>& tags) {
     std::string result;
     size_t i = 0;
@@ -38,6 +38,22 @@ std::string protectTags(std::string const& text, std::vector<std::string>& tags)
                 continue;
             }
         }
+
+        if (text[i] == '[') {
+            size_t closeBracket = text.find(']', i);
+            if (closeBracket != std::string::npos &&
+                closeBracket + 1 < text.size() &&
+                text[closeBracket + 1] == '(') {
+                size_t closeParen = text.find(')', closeBracket + 1);
+                if (closeParen != std::string::npos) {
+                    tags.push_back(text.substr(i, closeParen - i + 1));
+                    result += encodePlaceholder(static_cast<int>(tags.size()) - 1);
+                    i = closeParen + 1;
+                    continue;
+                }
+            }
+        }
+
         result += text[i];
         i++;
     }
